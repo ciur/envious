@@ -1,78 +1,15 @@
-package main
+package tools
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 )
 
-const (
-	ILLEGAL                = "ILLEGAL"
-	EOF                    = "EOF"
-	LEFT_BRA               = "LEFT_BRA"    // [
-	RIGHT_BRA              = "RIGHT_BRA"   // ]
-	COLUMN                 = "COLUMN"      // :
-	SEMI_COLUMN            = "SEMI_COLUMN" // ;
-	EQUAL                  = "EQUAL"       // =
-	IDENTIFIER             = "IDENTIFIER"  // identifier = value
-	LITERAL                = "LITERAL"
-	QUOTE                  = "QUOTE"        // '
-	DOUBLE_QUOTE           = "DOUBLE_QUOTE" // "
-	PROFILE_NAME           = "PROFILE_NAME"
-	INHERITED_PROFILE_NAME = "INHERITED_PROFILE_NAME"
-	DEFAULT_SWITCH         = "DEFAULT_SWITCH"
-)
-
-type TokenType string
-
-type Token struct {
-	token_type TokenType
-	value      string
-	line       int16
-}
-
-type ProfileVariable struct {
-	name  string
-	value string
-}
-
-type Profile struct {
-	name           string
-	inherit_from   string
-	default_switch bool
-	variables      []ProfileVariable
-}
-
-func main() {
-	var tokens []Token = parseIniFile("my.ini")
-	var profiles []Profile = buildProfiles(tokens)
-
-	enviousLsCmd := flag.NewFlagSet("ls", flag.ExitOnError)
-	detailed := enviousLsCmd.Bool("details", false, "details")
-
-	enviousUseCmd := flag.NewFlagSet("use", flag.ExitOnError)
-
-	if len(os.Args) == 1 {
-		useDefaultProfile(profiles)
-		return
-	}
-
-	switch os.Args[1] {
-	case "ls":
-		enviousLsCmd.Parse(os.Args[2:])
-		listProfiles(profiles, detailed)
-
-	case "use":
-		enviousUseCmd.Parse(os.Args[2:])
-		useProfile(profiles, os.Args[2])
-	}
-}
-
-func useDefaultProfile(profiles []Profile) {
-	found := findDefaultProfile(profiles)
+func UseDefaultProfile(profiles []Profile) {
+	found := FindDefaultProfile(profiles)
 	if found == nil {
 		fmt.Printf("Default profile not found\n")
 		return
@@ -80,7 +17,7 @@ func useDefaultProfile(profiles []Profile) {
 
 	inherit_from := (*found).inherit_from
 	if len(inherit_from) > 0 {
-		parent := findProfile(profiles, inherit_from)
+		parent := FindProfile(profiles, inherit_from)
 
 		if parent == nil {
 			fmt.Printf("Parent profile %s not found\n", inherit_from)
@@ -97,8 +34,8 @@ func useDefaultProfile(profiles []Profile) {
 	}
 }
 
-func useProfile(profiles []Profile, name string) {
-	found := findProfile(profiles, name)
+func UseProfile(profiles []Profile, name string) {
+	found := FindProfile(profiles, name)
 	if found == nil {
 		fmt.Printf("Profile %s not found\n", name)
 		return
@@ -106,7 +43,7 @@ func useProfile(profiles []Profile, name string) {
 
 	inherit_from := (*found).inherit_from
 	if len(inherit_from) > 0 {
-		parent := findProfile(profiles, inherit_from)
+		parent := FindProfile(profiles, inherit_from)
 
 		if parent == nil {
 			fmt.Printf("Parent profile %s not found\n", inherit_from)
@@ -123,7 +60,7 @@ func useProfile(profiles []Profile, name string) {
 	}
 }
 
-func findDefaultProfile(profiles []Profile) *Profile {
+func FindDefaultProfile(profiles []Profile) *Profile {
 	for _, profile := range profiles {
 		if profile.default_switch {
 			return &profile
@@ -133,7 +70,7 @@ func findDefaultProfile(profiles []Profile) *Profile {
 	return nil
 }
 
-func findProfile(profiles []Profile, name string) *Profile {
+func FindProfile(profiles []Profile, name string) *Profile {
 	for _, profile := range profiles {
 		if profile.name == name {
 			return &profile
@@ -149,7 +86,7 @@ func listProfileVariables(profile Profile) {
 	}
 }
 
-func listProfiles(profiles []Profile, detailed *bool) {
+func ListProfiles(profiles []Profile, detailed *bool) {
 	for _, profile := range profiles {
 		if profile.default_switch {
 			fmt.Printf("%s*\n", profile.name)
@@ -159,7 +96,7 @@ func listProfiles(profiles []Profile, detailed *bool) {
 
 		if *detailed {
 			inherit_from := profile.inherit_from
-			found := findProfile(profiles, inherit_from)
+			found := FindProfile(profiles, inherit_from)
 			if found != nil {
 				listProfileVariables(*found)
 			}
@@ -168,7 +105,7 @@ func listProfiles(profiles []Profile, detailed *bool) {
 	}
 }
 
-func buildProfiles(tokens []Token) []Profile {
+func BuildProfiles(tokens []Token) []Profile {
 	var profiles []Profile
 
 	for i := 0; i < len(tokens); i++ {
@@ -201,7 +138,7 @@ func buildProfiles(tokens []Token) []Profile {
 	return profiles
 }
 
-func parseIniFile(fileName string) []Token {
+func ParseIniFile(fileName string) []Token {
 	var tokens []Token
 	file, err := os.Open(fileName)
 

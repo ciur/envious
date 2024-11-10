@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -49,10 +50,122 @@ func main() {
 	var tokens []Token = parseIniFile("my.ini")
 	var profiles []Profile = buildProfiles(tokens)
 
-	for _, profile := range profiles {
-		fmt.Printf("%s %s %t\n", profile.name, profile.inherit_from, profile.default_switch)
+	enviousLsCmd := flag.NewFlagSet("ls", flag.ExitOnError)
+	detailed := enviousLsCmd.Bool("details", false, "details")
+
+	enviousUseCmd := flag.NewFlagSet("use", flag.ExitOnError)
+
+	if len(os.Args) == 1 {
+		useDefaultProfile(profiles)
+		return
 	}
 
+	switch os.Args[1] {
+	case "ls":
+		enviousLsCmd.Parse(os.Args[2:])
+		listProfiles(profiles, detailed)
+
+	case "use":
+		enviousUseCmd.Parse(os.Args[2:])
+		useProfile(profiles, os.Args[2])
+	}
+}
+
+func useDefaultProfile(profiles []Profile) {
+	found := findDefaultProfile(profiles)
+	if found == nil {
+		fmt.Printf("Default profile not found\n")
+		return
+	}
+
+	inherit_from := (*found).inherit_from
+	if len(inherit_from) > 0 {
+		parent := findProfile(profiles, inherit_from)
+
+		if parent == nil {
+			fmt.Printf("Parent profile %s not found\n", inherit_from)
+			return
+		}
+
+		for _, v := range (*parent).variables {
+			fmt.Printf("export %s=%s\n", v.name, v.value)
+		}
+	}
+
+	for _, v := range (*found).variables {
+		fmt.Printf("export %s=%s\n", v.name, v.value)
+	}
+}
+
+func useProfile(profiles []Profile, name string) {
+	found := findProfile(profiles, name)
+	if found == nil {
+		fmt.Printf("Profile %s not found\n", name)
+		return
+	}
+
+	inherit_from := (*found).inherit_from
+	if len(inherit_from) > 0 {
+		parent := findProfile(profiles, inherit_from)
+
+		if parent == nil {
+			fmt.Printf("Parent profile %s not found\n", inherit_from)
+			return
+		}
+
+		for _, v := range (*parent).variables {
+			fmt.Printf("export %s=%s\n", v.name, v.value)
+		}
+	}
+
+	for _, v := range (*found).variables {
+		fmt.Printf("export %s=%s\n", v.name, v.value)
+	}
+}
+
+func findDefaultProfile(profiles []Profile) *Profile {
+	for _, profile := range profiles {
+		if profile.default_switch {
+			return &profile
+		}
+	}
+
+	return nil
+}
+
+func findProfile(profiles []Profile, name string) *Profile {
+	for _, profile := range profiles {
+		if profile.name == name {
+			return &profile
+		}
+	}
+
+	return nil
+}
+
+func listProfileVariables(profile Profile) {
+	for _, v := range profile.variables {
+		fmt.Printf("%s = %s\n", v.name, v.value)
+	}
+}
+
+func listProfiles(profiles []Profile, detailed *bool) {
+	for _, profile := range profiles {
+		if profile.default_switch {
+			fmt.Printf("%s*\n", profile.name)
+		} else {
+			fmt.Printf("%s\n", profile.name)
+		}
+
+		if *detailed {
+			inherit_from := profile.inherit_from
+			found := findProfile(profiles, inherit_from)
+			if found != nil {
+				listProfileVariables(*found)
+			}
+			listProfileVariables(profile)
+		}
+	}
 }
 
 func buildProfiles(tokens []Token) []Profile {
